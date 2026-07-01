@@ -5,12 +5,7 @@
   const $$ = (selector, context = document) =>
     [...context.querySelectorAll(selector)];
 
-  /*
-  |--------------------------------------------------------------------------
-  | Loading screen
-  |--------------------------------------------------------------------------
-  */
-
+  /* Loading screen */
   const loader = $(".loader");
 
   const finishLoading = () => {
@@ -19,29 +14,19 @@
   };
 
   window.addEventListener("load", () => {
-    setTimeout(finishLoading, 500);
+    window.setTimeout(finishLoading, 500);
   });
 
-  setTimeout(finishLoading, 2600);
+  window.setTimeout(finishLoading, 2600);
 
-  /*
-  |--------------------------------------------------------------------------
-  | Footer year
-  |--------------------------------------------------------------------------
-  */
-
+  /* Footer year */
   const year = $("#year");
 
   if (year) {
     year.textContent = new Date().getFullYear();
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | Mobile menu
-  |--------------------------------------------------------------------------
-  */
-
+  /* Menu */
   const menu = $("#menu");
   const menuToggle = $(".menu-toggle");
   const menuBackdrop = $(".menu__backdrop");
@@ -54,12 +39,12 @@
   };
 
   menuToggle?.addEventListener("click", () => {
-    const isOpen = !menu?.classList.contains("is-open");
+    const willOpen = !menu?.classList.contains("is-open");
 
-    document.body.classList.toggle("menu-open", isOpen);
-    menu?.classList.toggle("is-open", isOpen);
-    menu?.setAttribute("aria-hidden", String(!isOpen));
-    menuToggle.setAttribute("aria-expanded", String(isOpen));
+    document.body.classList.toggle("menu-open", willOpen);
+    menu?.classList.toggle("is-open", willOpen);
+    menu?.setAttribute("aria-hidden", String(!willOpen));
+    menuToggle.setAttribute("aria-expanded", String(willOpen));
   });
 
   $$(".menu a").forEach((link) => {
@@ -68,12 +53,13 @@
 
   menuBackdrop?.addEventListener("click", closeMenu);
 
-  /*
-  |--------------------------------------------------------------------------
-  | Header appearance while scrolling
-  |--------------------------------------------------------------------------
-  */
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeMenu();
+    }
+  });
 
+  /* Header colour after leaving the hero */
   const siteHeader = $(".site-header");
 
   const updateHeader = () => {
@@ -81,88 +67,133 @@
   };
 
   window.addEventListener("scroll", updateHeader, {
-    passive: true,
+    passive: true
   });
 
   updateHeader();
 
-  /*
-  |--------------------------------------------------------------------------
-  | Scroll story
-  |--------------------------------------------------------------------------
-  */
-
+  /* Scroll story — desktop, tablet and mobile */
   const storySteps = $$(".story__step");
   const storyFrames = $$(".story__frame");
   const sceneNumber = $("#scene-number");
 
-  if (storySteps.length && storyFrames.length) {
-    const storyObserver = new IntersectionObserver(
+  let storyObserver = null;
+  let storyResizeTimer = null;
+
+  const activateStoryScene = (sceneIndex) => {
+    storySteps.forEach((step, index) => {
+      step.classList.toggle(
+        "is-active",
+        index === sceneIndex
+      );
+    });
+
+    storyFrames.forEach((frame, index) => {
+      frame.classList.toggle(
+        "is-active",
+        index === sceneIndex
+      );
+    });
+
+    if (sceneNumber) {
+      sceneNumber.textContent =
+        String(sceneIndex + 1).padStart(2, "0");
+    }
+  };
+
+  const createStoryObserver = () => {
+    if (!storySteps.length || !storyFrames.length) {
+      return;
+    }
+
+    storyObserver?.disconnect();
+
+    const isMobile =
+      window.matchMedia("(max-width: 900px)").matches;
+
+    storyObserver = new IntersectionObserver(
       (entries) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting) {
-            return;
-          }
+        const visibleEntries = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort(
+            (a, b) =>
+              b.intersectionRatio - a.intersectionRatio
+          );
 
-          const scene = Number(entry.target.dataset.scene);
+        if (!visibleEntries.length) {
+          return;
+        }
 
-          storySteps.forEach((step, index) => {
-            step.classList.toggle("is-active", index === scene);
-          });
+        const sceneIndex =
+          Number(
+            visibleEntries[0].target.dataset.scene
+          ) || 0;
 
-          storyFrames.forEach((frame, index) => {
-            frame.classList.toggle("is-active", index === scene);
-          });
-
-          if (sceneNumber) {
-            sceneNumber.textContent = String(scene + 1).padStart(2, "0");
-          }
-        });
+        activateStoryScene(sceneIndex);
       },
       {
-        rootMargin: "-35% 0px -45% 0px",
-        threshold: 0,
+        root: null,
+        rootMargin: isMobile
+          ? "-54% 0px -30% 0px"
+          : "-35% 0px -45% 0px",
+        threshold: [0, 0.05, 0.15, 0.3, 0.5]
       }
     );
 
     storySteps.forEach((step) => {
       storyObserver.observe(step);
     });
-  }
+  };
 
-  /*
-  |--------------------------------------------------------------------------
-  | Service-image switching
-  |--------------------------------------------------------------------------
-  */
+  activateStoryScene(0);
+  createStoryObserver();
 
+  window.addEventListener("resize", () => {
+    window.clearTimeout(storyResizeTimer);
+
+    storyResizeTimer = window.setTimeout(() => {
+      createStoryObserver();
+    }, 180);
+  });
+
+  /* Service image switching */
   const serviceRows = $$(".service-row");
   const serviceImages = $$(".service-image");
 
   const activateService = (selectedIndex) => {
     serviceRows.forEach((row, index) => {
-      row.classList.toggle("is-active", index === selectedIndex);
+      row.classList.toggle(
+        "is-active",
+        index === selectedIndex
+      );
     });
 
     serviceImages.forEach((image, index) => {
-      image.classList.toggle("is-active", index === selectedIndex);
+      image.classList.toggle(
+        "is-active",
+        index === selectedIndex
+      );
     });
   };
 
   serviceRows.forEach((row, index) => {
-    ["mouseenter", "focus", "click"].forEach((eventName) => {
-      row.addEventListener(eventName, () => {
-        activateService(index);
-      });
+    [
+      "mouseenter",
+      "focus",
+      "click",
+      "touchstart"
+    ].forEach((eventName) => {
+      row.addEventListener(
+        eventName,
+        () => activateService(index),
+        eventName === "touchstart"
+          ? { passive: true }
+          : undefined
+      );
     });
   });
 
-  /*
-  |--------------------------------------------------------------------------
-  | Reveal animations
-  |--------------------------------------------------------------------------
-  */
-
+  /* Reveal animations */
   const revealTargets = $$(
     ".section-head, " +
       ".cover-card, " +
@@ -176,32 +207,33 @@
     element.dataset.reveal = "";
   });
 
-  const revealObserver = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (!entry.isIntersecting) {
-          return;
-        }
+  if ("IntersectionObserver" in window) {
+    const revealObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) {
+            return;
+          }
 
-        entry.target.classList.add("is-visible");
-        revealObserver.unobserve(entry.target);
-      });
-    },
-    {
-      threshold: 0.12,
-    }
-  );
+          entry.target.classList.add("is-visible");
+          revealObserver.unobserve(entry.target);
+        });
+      },
+      {
+        threshold: 0.12
+      }
+    );
 
-  revealTargets.forEach((element) => {
-    revealObserver.observe(element);
-  });
+    revealTargets.forEach((element) => {
+      revealObserver.observe(element);
+    });
+  } else {
+    revealTargets.forEach((element) => {
+      element.classList.add("is-visible");
+    });
+  }
 
-  /*
-  |--------------------------------------------------------------------------
-  | Gentle image movement
-  |--------------------------------------------------------------------------
-  */
-
+  /* Parallax only on larger screens */
   const reducedMotion = window.matchMedia(
     "(prefers-reduced-motion: reduce)"
   ).matches;
@@ -211,6 +243,15 @@
     let ticking = false;
 
     const updateParallax = () => {
+      if (window.innerWidth <= 900) {
+        parallaxImages.forEach((image) => {
+          image.style.transform = "";
+        });
+
+        ticking = false;
+        return;
+      }
+
       parallaxImages.forEach((image) => {
         const container = image.parentElement;
 
@@ -219,6 +260,7 @@
         }
 
         const rect = container.getBoundingClientRect();
+
         const progress =
           (window.innerHeight - rect.top) /
           (window.innerHeight + rect.height);
@@ -236,39 +278,57 @@
       "scroll",
       () => {
         if (!ticking) {
-          window.requestAnimationFrame(updateParallax);
+          window.requestAnimationFrame(
+            updateParallax
+          );
+
           ticking = true;
         }
       },
       {
-        passive: true,
+        passive: true
       }
+    );
+
+    window.addEventListener(
+      "resize",
+      updateParallax
     );
 
     updateParallax();
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | Desktop custom cursor
-  |--------------------------------------------------------------------------
-  */
-
+  /* Desktop cursor */
   const cursor = $(".cursor");
-  const cursorText = cursor?.querySelector("span");
-  const finePointer = window.matchMedia("(pointer: fine)").matches;
+
+  const finePointer =
+    window.matchMedia("(pointer: fine)").matches;
 
   if (cursor && finePointer) {
+    const cursorText =
+      cursor.querySelector("span");
+
     let mouseX = 0;
     let mouseY = 0;
     let cursorX = 0;
     let cursorY = 0;
 
-    window.addEventListener("mousemove", (event) => {
-      mouseX = event.clientX;
-      mouseY = event.clientY;
-      cursor.classList.add("is-visible");
-    });
+    window.addEventListener(
+      "mousemove",
+      (event) => {
+        mouseX = event.clientX;
+        mouseY = event.clientY;
+
+        cursor.classList.add("is-visible");
+      }
+    );
+
+    window.addEventListener(
+      "mouseleave",
+      () => {
+        cursor.classList.remove("is-visible");
+      }
+    );
 
     const moveCursor = () => {
       cursorX += (mouseX - cursorX) * 0.14;
@@ -283,70 +343,91 @@
     moveCursor();
 
     $$("[data-cursor]").forEach((element) => {
-      element.addEventListener("mouseenter", () => {
-        if (cursorText) {
-          cursorText.textContent = element.dataset.cursor || "View";
+      element.addEventListener(
+        "mouseenter",
+        () => {
+          if (cursorText) {
+            cursorText.textContent =
+              element.dataset.cursor || "View";
+          }
         }
-      });
+      );
 
-      element.addEventListener("mouseleave", () => {
-        if (cursorText) {
-          cursorText.textContent = "View";
+      element.addEventListener(
+        "mouseleave",
+        () => {
+          if (cursorText) {
+            cursorText.textContent = "View";
+          }
         }
-      });
+      );
     });
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | Magnetic desktop buttons
-  |--------------------------------------------------------------------------
-  */
+  /* Magnetic desktop buttons */
+  if (finePointer) {
+    $$(".magnetic").forEach((element) => {
+      element.addEventListener(
+        "mousemove",
+        (event) => {
+          const rect =
+            element.getBoundingClientRect();
 
-  $$(".magnetic").forEach((element) => {
-    element.addEventListener("mousemove", (event) => {
-      const rect = element.getBoundingClientRect();
-      const horizontalDistance =
-        event.clientX - (rect.left + rect.width / 2);
-      const verticalDistance =
-        event.clientY - (rect.top + rect.height / 2);
+          const horizontal =
+            event.clientX -
+            (rect.left + rect.width / 2);
 
-      element.style.transform =
-        `translate(${horizontalDistance * 0.12}px, ` +
-        `${verticalDistance * 0.12}px)`;
+          const vertical =
+            event.clientY -
+            (rect.top + rect.height / 2);
+
+          element.style.transform =
+            `translate(` +
+            `${horizontal * 0.12}px, ` +
+            `${vertical * 0.12}px` +
+            `)`;
+        }
+      );
+
+      element.addEventListener(
+        "mouseleave",
+        () => {
+          element.style.transform = "";
+        }
+      );
     });
+  }
 
-    element.addEventListener("mouseleave", () => {
-      element.style.transform = "";
-    });
-  });
-
-  /*
-  |--------------------------------------------------------------------------
-  | Contact form
-  |--------------------------------------------------------------------------
-  */
-
+  /* Contact form */
   const contactForm = $("#contact-form");
 
-  contactForm?.addEventListener("submit", (event) => {
-    event.preventDefault();
+  contactForm?.addEventListener(
+    "submit",
+    (event) => {
+      event.preventDefault();
 
-    const formData = new FormData(event.currentTarget);
+      const data =
+        new FormData(event.currentTarget);
 
-    const subject = encodeURIComponent(
-      `Pubtain enquiry — ${formData.get("venue")}`
-    );
+      const subject = encodeURIComponent(
+        `Pubtain enquiry — ${data.get("venue")}`
+      );
 
-    const body = encodeURIComponent(
-      `Name: ${formData.get("name")}\n` +
-        `Pub/company: ${formData.get("venue")}\n` +
-        `Email: ${formData.get("email")}\n` +
-        `Telephone: ${formData.get("phone") || "Not provided"}\n\n` +
-        `What they need help with:\n${formData.get("message")}`
-    );
+      const body = encodeURIComponent(
+        `Name: ${data.get("name")}\n` +
+          `Pub/company: ${data.get("venue")}\n` +
+          `Email: ${data.get("email")}\n` +
+          `Telephone: ${
+            data.get("phone") || "Not provided"
+          }\n\n` +
+          `What they need help with:\n` +
+          `${data.get("message")}`
+      );
 
-    window.location.href =
-      `mailto:hello@pubtain.com?subject=${subject}&body=${body}`;
-  });
+      window.location.href =
+        `mailto:hello@pubtain.com` +
+        `?subject=${subject}` +
+        `&body=${body}`;
+    }
+  );
 })();
